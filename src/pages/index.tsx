@@ -9,6 +9,7 @@ import dynamic from "next/dynamic";
 const ReactPlayer = dynamic(() => import("react-player/lazy"), { ssr: false });
 
 const Home: NextPage = () => {
+  const discord = trpc.discordChannel.getToken.useQuery();
   const hello = trpc.example.hello.useQuery({ text: "from tRPC" });
   const [tier, setTier] = React.useState<"1" | "2" | "3" | "all">("1");
   const links: Array<{
