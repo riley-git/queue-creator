@@ -22,6 +22,7 @@ export const serverSchema = z.object({
   DISCORD_CLIENT_SECRET: z.string(),
   DISCORD_TOKEN: z.string(),
   DISCORD_API_URL: z.string(),
+  DISCORD_BOT_ID: z.string(),
 });
 
 /**
