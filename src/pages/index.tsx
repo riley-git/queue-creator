@@ -1,6 +1,6 @@
 import { type NextPage } from "next";
 import Head from "next/head";
-import Link from "next/link";
+// import Link from "next/link";
 import { signIn, signOut, useSession } from "next-auth/react";
 import React from "react";
 import { trpc } from "../utils/trpc";
@@ -9,8 +9,15 @@ import dynamic from "next/dynamic";
 const ReactPlayer = dynamic(() => import("react-player/lazy"), { ssr: false });
 
 const Home: NextPage = () => {
-  const discord = trpc.discordChannel.getToken.useQuery();
-  const hello = trpc.example.hello.useQuery({ text: "from tRPC" });
+  const { data: sessionData } = useSession();
+  const { data: memberGuilds } = trpc.discord.getGuilds.useQuery(
+    { accessToken: sessionData?.accessToken },
+    { enabled: sessionData?.user !== undefined }
+  );
+
+  console.log(memberGuilds);
+  // const hello = trpc.example.hello.useQuery({ text: "from tRPC" });
+  const [serverSelected, setServerSelected] = React.useState(false);
   const [tier, setTier] = React.useState<"1" | "2" | "3" | "all">("1");
   const links: Array<{
     url: string;
@@ -43,6 +50,7 @@ const Home: NextPage = () => {
       tier: "3",
     },
   ];
+
   return (
     <>
       <Head>
@@ -54,60 +62,63 @@ const Home: NextPage = () => {
         <div className="flex flex-col items-center justify-center"></div>
         <div className="container flex flex-col items-center justify-center gap-12 px-4 py-16 ">
           <h1 className="text-5xl font-extrabold tracking-tight text-white sm:text-[5rem]">
-            Queue <span className="text-[]">Control</span>
+            Queue <span className="text-purple-50">Control</span>
           </h1>
-          <div className="flex items-start justify-center gap-4">
-            <button
-              className="rounded bg-blue-500 py-2 px-4 font-bold text-white hover:bg-blue-700"
-              onClick={() => setTier("all")}
-            >
-              All
-            </button>
-            <button
-              className="rounded bg-blue-500 py-2 px-4 font-bold text-white hover:bg-blue-700"
-              onClick={() => setTier("1")}
-            >
-              Tier 1
-            </button>
-            <button
-              className="rounded bg-blue-500 py-2 px-4 font-bold text-white hover:bg-blue-700"
-              onClick={() => setTier("2")}
-            >
-              Tier 2
-            </button>
-            <button
-              className="rounded bg-blue-500 py-2 px-4 font-bold text-white hover:bg-blue-700"
-              onClick={() => setTier("3")}
-            >
-              Tier 3
-            </button>
-          </div>
-          <div className=".overflow-y-scroll flex  flex-col gap-4 rounded-xl bg-white/10 p-4 text-white hover:bg-white/20">
-            <h3 className="text-2xl font-bold">
-              {tier !== "all" ? `Tier ${tier}` : "All"}
-            </h3>
-            {links
-              .filter(
-                (link) =>
-                  (!link.isFinished && link.tier === tier) || tier === "all"
-              )
-              .map((link) => (
-                <ReactPlayer
-                  url={link.url}
-                  playsinline={true}
-                  height="8rem"
-                  onEnded={() => {
-                    link.isFinished = true;
-                  }}
-                />
-              ))}
-          </div>
-          <div className="flex flex-col items-center gap-2">
-            <p className="text-2xl text-white">
-              {hello.data ? hello.data.greeting : "Loading tRPC query..."}
-            </p>
-            <AuthShowcase />
-          </div>
+          {sessionData && (
+            <div className="flex flex-col items-center justify-center gap-4"></div>
+          )}
+          {serverSelected && (
+            <>
+              <div className="flex items-start justify-center gap-4">
+                <button
+                  className="rounded bg-blue-500 py-2 px-4 font-bold text-white hover:bg-blue-700"
+                  onClick={() => setTier("all")}
+                >
+                  All
+                </button>
+                <button
+                  className="rounded bg-blue-500 py-2 px-4 font-bold text-white hover:bg-blue-700"
+                  onClick={() => setTier("1")}
+                >
+                  Tier 1
+                </button>
+                <button
+                  className="rounded bg-blue-500 py-2 px-4 font-bold text-white hover:bg-blue-700"
+                  onClick={() => setTier("2")}
+                >
+                  Tier 2
+                </button>
+                <button
+                  className="rounded bg-blue-500 py-2 px-4 font-bold text-white hover:bg-blue-700"
+                  onClick={() => setTier("3")}
+                >
+                  Tier 3
+                </button>
+              </div>
+              <div className=".overflow-y-scroll flex  flex-col gap-4 rounded-xl bg-white/10 p-4 text-white hover:bg-white/20">
+                <h3 className="text-2xl font-bold">
+                  {tier !== "all" ? `Tier ${tier}` : "All"}
+                </h3>
+                {links
+                  .filter(
+                    (link) =>
+                      (!link.isFinished && link.tier === tier) || tier === "all"
+                  )
+                  .map((link, i) => (
+                    <ReactPlayer
+                      key={i}
+                      url={link.url}
+                      playsinline={true}
+                      height="8rem"
+                      onEnded={() => {
+                        link.isFinished = true;
+                      }}
+                    />
+                  ))}
+              </div>
+            </>
+          )}
+          <AuthShowcase />
         </div>
       </main>
     </>
@@ -119,20 +130,14 @@ export default Home;
 const AuthShowcase: React.FC = () => {
   const { data: sessionData } = useSession();
 
-  const { data: secretMessage } = trpc.auth.getSecretMessage.useQuery(
-    undefined, // no input
-    { enabled: sessionData?.user !== undefined }
-  );
-
   return (
     <div className="flex flex-col items-center justify-center gap-4">
       <p className="text-center text-2xl text-white">
         {sessionData && <span>Logged in as {sessionData.user?.name}</span>}
-        {secretMessage && <span> - {secretMessage}</span>}
       </p>
       <button
         className="rounded-full bg-white/10 px-10 py-3 font-semibold text-white no-underline transition hover:bg-white/20"
-        onClick={sessionData ? () => signOut() : () => signIn()}
+        onClick={sessionData ? () => signOut() : () => signIn("discord")}
       >
         {sessionData ? "Sign out" : "Sign in"}
       </button>
